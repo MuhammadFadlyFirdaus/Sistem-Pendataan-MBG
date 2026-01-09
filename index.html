@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem MBG - Pendataan Makan Bergizi Gratis</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Firebase SDK (Modular) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        // Make Firebase available globally for app.js
+        window.firebaseModules = { initializeApp, getDatabase, ref, set, onValue, update };
+    </script>
+</head>
+
+<body>
+
+    <div class="app-container">
+
+        <div id="toast-container" class="toast-container"></div>
+
+        <!-- LOGIN VIEW -->
+        <section id="login-view" class="view active">
+            <div class="login-card">
+                <div class="brand">
+                    <div class="logo-wrapper">
+                        <img src="school-logo.png" alt="Logo" class="logo-img">
+                    </div>
+                    <h1>MBG</h1>
+                    <p>Sistem Pendataan Makan Bergizi</p>
+                </div>
+
+                <form id="login-form">
+                    <div class="form-group">
+                        <label>Pilih Angkatan</label>
+                        <div class="select-wrapper">
+                            <select id="angkatan_select" required>
+                                <option value="" disabled selected>Pilih Angkatan...</option>
+                                <option value="10">Kelas 10</option>
+                                <option value="11">Kelas 11</option>
+                                <option value="12">Kelas 12</option>
+                            </select>
+                            <i class="ph ph-caret-down"></i>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Pilih Kelas</label>
+                        <div class="select-wrapper">
+                            <select id="kelas_select" required disabled>
+                                <option value="" disabled selected>Pilih Kelas...</option>
+                                <!-- Populated by JS -->
+                            </select>
+                            <i class="ph ph-caret-down"></i>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Kode Akses</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="password_input" placeholder="Masukkan PIN Kelas" required>
+                            <i class="ph ph-lock-key"></i>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-primary">
+                        Masuk Dashboard <i class="ph ph-arrow-right"></i>
+                    </button>
+                </form>
+
+                <div class="footer-note">
+                    <p>Butuh bantuan? Hubungi Admin Tata Usaha</p>
+                    <a href="#" id="admin-link_btn"
+                        style="color: var(--primary); text-decoration: none; font-size: 0.8rem; margin-top: 0.5rem; display: inline-block;">Masuk
+                        sebagai Admin</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ADMIN VIEW -->
+        <section id="admin-view" class="view">
+            <header class="top-bar">
+                <div class="user-info">
+                    <h2>Rekapitulasi Data</h2>
+                    <span class="badge">Admin Mode</span>
+                </div>
+                <button id="admin-back-btn" class="btn-icon">
+                    <i class="ph ph-sign-out"></i>
+                </button>
+            </header>
+            <main class="dashboard-content">
+                <div class="date-card">
+                    <h3 id="admin-date-display">Laporan Hari Ini</h3>
+                    <button class="btn-icon" id="refresh-admin"><i class="ph ph-arrows-clockwise"></i></button>
+                </div>
+
+                <div class="stats-overview">
+                    <div class="stat-card orange">
+                        <i class="ph ph-bowl-food"></i>
+                        <span class="stat-label">Total Porsi</span>
+                        <span class="stat-value" id="admin-total-porsi">0</span>
+                    </div>
+                    <div class="stat-card green">
+                        <i class="ph ph-check-square"></i>
+                        <span class="stat-label">Sudah Diambil</span>
+                        <span class="stat-value" id="admin-taken-count">0</span>
+                    </div>
+                    <div class="stat-card" style="border-color: var(--border);">
+                        <i class="ph ph-clock"></i>
+                        <span class="stat-label">Belum Diambil</span>
+                        <span class="stat-value" id="admin-pending-count">0</span>
+                    </div>
+                </div>
+
+                <div class="data-entry-card" style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <thead>
+                            <tr
+                                style="text-align: left; border-bottom: 1px solid var(--border); color: var(--text-muted);">
+                                <th style="padding: 1rem 0.5rem;">Kelas</th>
+                                <th style="padding: 1rem 0.5rem;">Siswa</th>
+                                <th style="padding: 1rem 0.5rem;">Hadir</th>
+                                <th style="padding: 1rem 0.5rem;">Catatan</th>
+                                <th style="padding: 1rem 0.5rem;">Status</th>
+                                <th style="padding: 1rem 0.5rem;">Ambil</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-tbody">
+                            <!-- Rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </main>
+        </section>
+
+        <!-- DASHBOARD VIEW -->
+        <section id="dashboard-view" class="view">
+            <header class="top-bar">
+                <div class="user-info">
+                    <h2 id="class-title">Kelas 10 - 1</h2>
+                    <span class="badge">Sesi Aktif</span>
+                </div>
+                <button id="logout-btn" class="btn-icon">
+                    <i class="ph ph-sign-out"></i>
+                </button>
+            </header>
+
+            <main class="dashboard-content">
+                <div class="date-card">
+                    <div class="date-info">
+                        <span class="label">Hari ini</span>
+                        <h3 id="current-date">Senin, 12 Januari 2026</h3>
+                    </div>
+                    <div class="status-indicator pending" id="submission-status">
+                        <i class="ph ph-warning-circle"></i>
+                        <span>Belum Input Data</span>
+                    </div>
+                </div>
+
+                <div class="stats-overview">
+                    <div class="stat-card orange">
+                        <i class="ph ph-users-three"></i>
+                        <span class="stat-label">Total Siswa</span>
+                        <span class="stat-value" id="disp-total">0</span>
+                    </div>
+                    <div class="stat-card green">
+                        <i class="ph ph-check-circle"></i>
+                        <span class="stat-label">Hadir (Makan)</span>
+                        <span class="stat-value" id="disp-hadir">0</span>
+                    </div>
+                </div>
+
+                <form id="data-form" class="data-entry-card">
+                    <h3>Input Data Harian</h3>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Jumlah Total Siswa</label>
+                            <input type="number" id="input_total" value="32" min="1" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Siswa Hadir</label>
+                            <input type="number" id="input_hadir" placeholder="0" min="0" required>
+                        </div>
+                    </div>
+
+                    <div class="correction-box">
+                        <div class="correction-item">
+                            <span>Siswa Tidak Hadir:</span>
+                            <strong id="calc-absen">0</strong>
+                        </div>
+                        <div class="correction-item">
+                            <span>Total Porsi Makanan:</span>
+                            <strong id="calc-porsi" class="highlight">0</strong>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Catatan Tambahan (Opsional)</label>
+                        <textarea id="input_catatan" rows="2"
+                            placeholder="Jika ada catatan tambahan, masukkan di sini"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn-submit">
+                        <i class="ph ph-paper-plane-right"></i> Kirim Data
+                    </button>
+                </form>
+            </main>
+        </section>
+
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
